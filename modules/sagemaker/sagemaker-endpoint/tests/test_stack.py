@@ -10,14 +10,17 @@ from aws_cdk.assertions import Annotations, Match, Template
 from botocore.stub import Stubber
 
 
-@pytest.fixture(scope="function")
-def stack_defaults() -> None:
-    os.environ["CDK_DEFAULT_ACCOUNT"] = "111111111111"
-    os.environ["CDK_DEFAULT_REGION"] = "us-east-1"
+@pytest.fixture(scope="function", autouse=True)
+def stack_defaults():
+    with mock.patch.dict(os.environ, {}, clear=True):
+        os.environ["CDK_DEFAULT_ACCOUNT"] = "111111111111"
+        os.environ["CDK_DEFAULT_REGION"] = "us-east-1"
 
-    # Unload the app import so that subsequent tests don't reuse
-    if "stack" in sys.modules:
-        del sys.modules["stack"]
+        # Unload the app import so that subsequent tests don't reuse
+        if "stack" in sys.modules:
+            del sys.modules["stack"]
+
+        yield
 
 
 @pytest.fixture(scope="function")
@@ -32,6 +35,8 @@ def stack_model_package_input() -> cdk.Stack:
 
     sagemaker_project_id = "12345"
     sagemaker_project_name = "sagemaker-project"
+    sagemaker_domain_id = "ABCDE"
+    sagemaker_domain_arn = f"arn:aws:sagemaker:::domain/{sagemaker_domain_id}"
     vpc_id = "vpc-12345"
     model_package_arn = "example-arn"
     model_artifacts_bucket_arn = "arn:aws:s3:::test-bucket"
@@ -44,6 +49,8 @@ def stack_model_package_input() -> cdk.Stack:
         id=f"{project_name}-{dep_name}-{mod_name}",
         sagemaker_project_id=sagemaker_project_id,
         sagemaker_project_name=sagemaker_project_name,
+        sagemaker_domain_id=sagemaker_domain_id,
+        sagemaker_domain_arn=sagemaker_domain_arn,
         model_package_arn=model_package_arn,
         model_package_group_name=None,
         model_execution_role_arn=None,
@@ -58,10 +65,13 @@ def stack_model_package_input() -> cdk.Stack:
         managed_instance_scaling=managed_instance_scaling,
         scaling_min_instance_count=scaling_min_instance_count,
         scaling_max_instance_count=scaling_max_instance_count,
+        data_capture_sampling_percentage=0,
+        data_capture_prefix="",
         env=cdk.Environment(
             account=os.environ["CDK_DEFAULT_ACCOUNT"],
             region=os.environ["CDK_DEFAULT_REGION"],
         ),
+        enable_network_isolation=True,
     )
 
 
@@ -78,6 +88,8 @@ def stack_latest_approved_model_package(mock_s3_client) -> cdk.Stack:
 
     sagemaker_project_id = "12345"
     sagemaker_project_name = "sagemaker-project"
+    sagemaker_domain_id = "ABCDE"
+    sagemaker_domain_arn = f"arn:aws:sagemaker:::domain/{sagemaker_domain_id}"
     vpc_id = "vpc-12345"
     model_package_group_name = "example-group"
     model_artifacts_bucket_arn = "arn:aws:s3:::test-bucket"
@@ -112,6 +124,8 @@ def stack_latest_approved_model_package(mock_s3_client) -> cdk.Stack:
             id=f"{project_name}-{dep_name}-{mod_name}",
             sagemaker_project_id=sagemaker_project_id,
             sagemaker_project_name=sagemaker_project_name,
+            sagemaker_domain_id=sagemaker_domain_id,
+            sagemaker_domain_arn=sagemaker_domain_arn,
             model_package_arn=None,
             model_package_group_name=model_package_group_name,
             model_execution_role_arn=None,
@@ -126,10 +140,13 @@ def stack_latest_approved_model_package(mock_s3_client) -> cdk.Stack:
             managed_instance_scaling=managed_instance_scaling,
             scaling_min_instance_count=scaling_min_instance_count,
             scaling_max_instance_count=scaling_max_instance_count,
+            data_capture_sampling_percentage=0,
+            data_capture_prefix="",
             env=cdk.Environment(
                 account=os.environ["CDK_DEFAULT_ACCOUNT"],
                 region=os.environ["CDK_DEFAULT_REGION"],
             ),
+            enable_network_isolation=True,
         )
 
 

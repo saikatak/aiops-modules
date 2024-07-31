@@ -31,7 +31,10 @@ where endpoints are provisioned as part of automated Continuous Integration and 
 
 - `sagemaker-project-id`: SageMaker project id
 - `sagemaker-project-name`: SageMaker project name
+- `sagemaker-domain-id`: SageMaker domain id
+- `sagemaker-domain-arn`: SageMaker domain ARN. Used to tag resources with the `domain-arn`, which is used for domain resource isolation. If domain resource isolation is enabled `sagemaker-domain-arn` must be provided to ensure correct access to endpoint and other resources within the domain 
 - `model-execution-role-arn`: Model execution role ARN. Will be created if not provided.
+- `enable-network-isolation`: Enable network isolation on the model. `True` by default.
 - `model-artifacts-bucket-arn`: Bucket ARN that contains model artifacts. Required by model execution IAM role to download model artifacts.
 - `ecr-repo-arn`: ECR repository ARN if custom container is used
 - `variant-name`: Endpoint config production variant name. `AllTraffic` by default.
@@ -40,7 +43,9 @@ where endpoints are provisioned as part of automated Continuous Integration and 
 - `instance-type`: instance type. `ml.m4.xlarge` by default.
 - `managed-instance-scaling`: whether to enable managed instance autoscaling. `False` by default.
 - `scaling-min-instance-count`: minimum autoscaling instance count. `1` by default. Only considered if `managed-instance-scaling` is `True`.
-- `scaling-max-instance-count` minimum autoscaling instance count. `10` by default. Only considered if `managed-instance-scaling` is `True`.
+- `scaling-max-instance-count`: minimum autoscaling instance count. `10` by default. Only considered if `managed-instance-scaling` is `True`.
+- `data-capture-samping-percentage`: the percentage of requests to capture data
+- `data-capture-prefix`: the S3 prefix into `model-artifacts-bucket-arn` to store captured data
 
 ### Sample manifest declaration
 
@@ -68,6 +73,18 @@ parameters:
         group: networking
         name: networking
         key: PrivateSubnetIds
+  - name: sagemaker-domain-id
+    valueFrom:
+      moduleMetadata:
+        group: sagemaker-studio
+        name: studio
+        key: StudioDomainId
+  - name: sagemaker-domain-arn
+    valueFrom:
+      moduleMetadata:
+        group: sagemaker-studio
+        name: studio
+        key: StudioDomainArn
 ```
 
 ### Module Metadata Outputs
@@ -77,6 +94,8 @@ parameters:
 - `ModelPackageArn`: SageMaker Model package ARN
 - `EndpointName`: SageMaker Endpoint name
 - `EndpointUrl`: SageMaker Endpoint Url
+- `KmsKeyId`: The KMS Key ID used for the SageMaker Endpoint assets bucket
+- `SecurityGroupId`: The security group ID for the SageMaker Endpoint
 
 #### Output Example
 
@@ -86,6 +105,8 @@ parameters:
   "ModelName": "mlops-mlops-sagemaker-endpoints-endpoint-model-xxxxxxxxxxxx",
   "EndpointName": "mlopsmlopssagemakerendpointsendpointendpoint-xxxxxxxxxxxx",
   "ModelPackageArn": "arn:aws:sagemaker:us-east-1:xxxxxxxxxxxx:model-package/model-mlops-demo/1",
-  "EndpointUrl": "https://runtime.sagemaker.us-east-1.amazonaws.com/endpoints/mlopsmlopssagemakerendpointsendpointendpoint-xxxxxxxxxxxx/invocations"
+  "EndpointUrl": "https://runtime.sagemaker.us-east-1.amazonaws.com/endpoints/mlopsmlopssagemakerendpointsendpointendpoint-xxxxxxxxxxxx/invocations",
+  "KmsKeyId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "SecurityGroupId": "sg-xxxxxxxxxxxxxxxxx"
 }
 ```

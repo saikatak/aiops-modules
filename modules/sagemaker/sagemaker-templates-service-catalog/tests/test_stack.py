@@ -3,6 +3,7 @@
 
 import os
 import sys
+from unittest import mock
 
 import aws_cdk as cdk
 import cdk_nag
@@ -12,13 +13,16 @@ from aws_cdk.assertions import Annotations, Match, Template
 
 @pytest.fixture(scope="function")
 def stack_defaults():
-    os.environ["CDK_DEFAULT_ACCOUNT"] = "111111111111"
-    os.environ["CDK_DEFAULT_REGION"] = "us-east-1"
+    with mock.patch.dict(os.environ, {}, clear=True):
+        os.environ["CDK_DEFAULT_ACCOUNT"] = "111111111111"
+        os.environ["CDK_DEFAULT_REGION"] = "us-east-1"
 
-    # Unload the app import so that subsequent tests don't reuse
+        # Unload the app import so that subsequent tests don't reuse
 
-    if "stack" in sys.modules:
-        del sys.modules["stack"]
+        if "stack" in sys.modules:
+            del sys.modules["stack"]
+
+        yield
 
 
 @pytest.fixture(scope="function")
@@ -45,6 +49,8 @@ def stack(stack_defaults) -> cdk.Stack:
     prod_vpc_id = "vpc"
     prod_subnet_ids = ["sub"]
     prod_security_group_ids = ["sg"]
+    sagemaker_domain_id = "domain_id"
+    sagemaker_domain_arn = f"arn:aws:sagemaker:::domain/{sagemaker_domain_id}"
 
     return stack.ServiceCatalogStack(
         app,
@@ -69,6 +75,8 @@ def stack(stack_defaults) -> cdk.Stack:
             account=os.environ["CDK_DEFAULT_ACCOUNT"],
             region=os.environ["CDK_DEFAULT_REGION"],
         ),
+        sagemaker_domain_id=sagemaker_domain_id,
+        sagemaker_domain_arn=sagemaker_domain_arn,
     )
 
 
@@ -76,7 +84,7 @@ def test_synthesize_stack(stack: cdk.Stack) -> None:
     template = Template.from_stack(stack)
 
     template.resource_count_is("AWS::ServiceCatalog::Portfolio", 1)
-    template.resource_count_is("AWS::ServiceCatalog::CloudFormationProduct", 4)
+    template.resource_count_is("AWS::ServiceCatalog::CloudFormationProduct", 5)
 
 
 def test_no_cdk_nag_errors(stack: cdk.Stack) -> None:

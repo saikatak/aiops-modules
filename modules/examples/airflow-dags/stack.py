@@ -2,14 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 import aws_cdk.aws_iam as aws_iam
-import cdk_nag
 import aws_cdk.aws_s3 as aws_s3
-from aws_cdk import Aspects, Stack, Tags, RemovalPolicy, Aws
-from cdk_nag import NagSuppressions, NagPackSuppression
-from constructs import Construct, IConstruct
+from aws_cdk import Aws, RemovalPolicy, Stack
+from cdk_nag import NagPackSuppression, NagSuppressions
+from constructs import Construct
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -39,9 +38,6 @@ class DagResources(Stack):
             description="This stack deploys Example DAGs resources for MLOps",
             **kwargs,
         )
-        Tags.of(scope=cast(IConstruct, self)).add(
-            key="Deployment", value=f"mlops-{deployment_name}"
-        )
         dep_mod = f"{project_name}-{deployment_name}-{module_name}"
         account: str = Aws.ACCOUNT_ID
         region: str = Aws.REGION
@@ -58,6 +54,7 @@ class DagResources(Stack):
         )
 
         self.mlops_assets_bucket = mlops_assets_bucket
+
         # Create Dag IAM Role and policy
         dag_statement = aws_iam.PolicyDocument(
             statements=[
@@ -73,11 +70,7 @@ class DagResources(Stack):
         )
 
         managed_policies = (
-            [
-                aws_iam.ManagedPolicy.from_managed_policy_arn(
-                    self, "bucket-policy", bucket_policy_arn
-                )
-            ]
+            [aws_iam.ManagedPolicy.from_managed_policy_arn(self, "bucket-policy", bucket_policy_arn)]
             if bucket_policy_arn
             else []
         )
@@ -103,52 +96,25 @@ class DagResources(Stack):
             path="/",
         )
 
-        dag_role.add_managed_policy(
-            aws_iam.ManagedPolicy.from_aws_managed_policy_name(
-                "AmazonSageMakerFullAccess"
-            )
-        )
-        dag_role.add_managed_policy(
-            aws_iam.ManagedPolicy.from_aws_managed_policy_name(
-                "CloudWatchLogsFullAccess"
-            )
-        )
+        dag_role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSageMakerFullAccess"))
+        dag_role.add_managed_policy(aws_iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchLogsFullAccess"))
 
         # Define the IAM role
         sagemaker_execution_role = aws_iam.Role(
             self,
             "SageMakerExecutionRole",
             assumed_by=aws_iam.ServicePrincipal("sagemaker.amazonaws.com"),
-            managed_policies=[
-                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonSageMakerFullAccess"
-                )
-            ],
+            managed_policies=[aws_iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSageMakerFullAccess")],
             path="/",
             role_name=f"SageMakerExecutionRole-{self.stack_name}",
         )
 
-        # Add policy to allow access to S3 bucket
-        sagemaker_execution_role.add_to_policy(
-            aws_iam.PolicyStatement(
-                actions=["s3:*"],
-                resources=[
-                    mlops_assets_bucket.bucket_arn,
-                    f"{mlops_assets_bucket.bucket_arn}/*",
-                ],
-            )
-        )
-
-        dag_role.add_to_policy(
-            aws_iam.PolicyStatement(
-                actions=["iam:PassRole"], resources=[sagemaker_execution_role.role_arn]
-            )
-        )
+        # Add policy to allow access to S3 bucket and IAM pass role
+        mlops_assets_bucket.grant_read_write(sagemaker_execution_role)
+        sagemaker_execution_role.grant_pass_role(dag_role)
 
         self.dag_role = dag_role
         self.sagemaker_execution_role = sagemaker_execution_role
-
-        Aspects.of(self).add(cdk_nag.AwsSolutionsChecks())
 
         NagSuppressions.add_resource_suppressions(
             self,
@@ -164,7 +130,7 @@ class DagResources(Stack):
                 ),
                 NagPackSuppression(
                     id="AwsSolutions-IAM5",
-                    reason="Resource access restriced to MLOPS resources.",
+                    reason="Resource access restricted to MLOPS resources.",
                 ),
                 NagPackSuppression(
                     id="AwsSolutions-IAM4",

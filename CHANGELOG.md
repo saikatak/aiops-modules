@@ -5,22 +5,88 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-=======
-
 ## UNRELEASED
 
 ### **Added**
+
+- adds workflow specific to changes for `requirements-dev.txt` so all static checks are run
+- add `ray-cluster` module based on `kuberay-helm` charts
+
+### **Changed**
+
+- add integration tests for `sagemaker-studio`
+- bump ecr module version to 1.10.0 to consume auto-delete images feature
+- add service account to kuberay
+- updated `get-modules` workflow to only run tests against changed files in `modules/**`
+- Updated the `sagemaker-templates-service-catalog` module documentation to match the code layout.
+- Modernize `sagemaker-templates-service-catalog` packaging and remove unused dependencies.
+- remove custom manifests via `dataFiles` from `ray-on-eks`
+- refactor `ray-on-eks` to `ray-cluster` and `ray-operator` modules
+- downscope `ray-operator` service account permissions
+- add an example custom `ray-image`
+- document available manifests in readme
+- add permission for SM studio to describe apps when domain resource isolation is enabled
+
+## v1.3.0
+
+### **Added**
+
+- added `ray-on-eks`, and `manifests/ray-on-eks` manifests
+- added a `sagemaker-model-monitoring-module` module with an example of data quality, model quality, model bias, and model explainability monitoring of a SageMaker Endpoint
+- added an option to enable data capture in the `sagemaker-endpoint-module`
+- added a `personas` example module to deploy various roles required for an AI/ML project
+- added `sagemaker-model-cicd` module
+- added `sagemaker_domain_arn` as optional input for multiple modules, tags resources created with domain ARN to support domain resource isolation
+- added `enable_network_isolation` as optional input for `sagemaker-endpoint` module, defaults to true
+- added `enable_domain_resource_isolation` as optional input for `sagemaker-studio` module, adds IAM policy to studio roles preventing the access of resources from outside the domain, defaults to true
+- added `StudioDomainArn` as output from `sagemaker-studio` module
+- added `enable_network_isolation` as parameter for `model_deploy` template
+
+### **Changed**
+
+- remove explicit module manifest account/region mappings from `fmops-qna-rag`
+- moved CI/CD infra to separate repository and added self mutation pipeline to provision infra for module `sagemaker-templates-service-catalog`
+- changed ECR encryption to KMS_MANAGED
+- changed encryption for each bucket to KMS_MANAGED
+- refactor `airflow-dags` module to use Pydantic
+- fix inputs for `bedrock-finetuning` module not working
+- add `retention-type` argument for the bucket in the `bedrock-finetuning` module
+- fix broken dependencies for `examples/airflow-dags`
+- use `add_dependency` to avoid deprecation warnings from CDK
+- various typo fixes
+- various clean-ups to the SageMaker Service Catalog templates
+- fix opensearch removal policy
+- update MWAA to 2.9.2
+- update mwaa constraints
+- limit length of id in model name to prevent model name becoming too long
+- add permission for get secret value in `hf_import_models` template
+- add manifests/tags parameters to one-click-template
+- add integration tests for `mlflow-image`
+
+## v1.2.0
+
+### **Added**
+
 - added multi-acc sagemaker-mlops manifest example
 
 ### **Changed**
+
 - fixed model deploy cross-account permissions
 - added bucket and model package group names as stack outputs in the `sagemaker-templates` module
-- refactor inputs for `mlflow-fargate` and `mlflow-image` 
-- refactor inputs for `sagemaker-studio` 
+- refactor inputs for the following modules to use Pydantic:
+  - `mlflow-fargate`
+  - `mlflow-image`
+  - `sagemaker-studio`
+  - `sagemaker-endpoint`
+  - `sagemaker-templates-service-catalog`
+  - `sagemaker-custom-kernel`
+  - `qna-rag`
+- add CDK nag to `qna-rag` module
 - rename seedfarmer project name to `aiops`
 - chore: adding some missing auto_delete attributes
 - chore: Add `auto_delete` to `mlflow-fargate` elb access logs bucket
 - updating `storage/ecr` module to latest pending `v1.8.0` of IDF
+- enabled ECR image scan on push
 
 ## v1.1.0
 
@@ -39,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - added `sagemaker-hugging-face-endpoint` module
 - added `hf_import_models` template to import hugging face models
 - added `qna-rag` module
+- added `bedrock-finetuning` module
 
 ### **Changed**
 
