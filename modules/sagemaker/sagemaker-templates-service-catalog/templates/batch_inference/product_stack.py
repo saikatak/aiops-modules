@@ -8,6 +8,7 @@ from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_s3_assets as s3_assets
 from constructs import Construct
 
+from common.code_repo_construct import RepositoryType
 from templates.batch_inference.pipeline_constructs.build_pipeline_construct import BuildPipelineConstruct
 
 
@@ -23,6 +24,10 @@ class Product(servicecatalog.ProductStack):
         deploy_app_asset: None,
         sagemaker_domain_id: str,
         sagemaker_domain_arn: str,
+        repository_type: RepositoryType,
+        access_token_secret_name: str,
+        aws_codeconnection_arn: str,
+        repository_owner: str,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id)
@@ -92,7 +97,7 @@ class Product(servicecatalog.ProductStack):
         pipeline_artifact_bucket = s3.Bucket(
             self,
             "Pipeline Artifacts Bucket",
-            bucket_name=f"mlops-{sagemaker_project_name}-{sagemaker_project_id}-{Aws.ACCOUNT_ID}",
+            bucket_name=f"mlops-{sagemaker_project_name}-{Aws.ACCOUNT_ID}",
             encryption_key=kms_key_artifact,
             versioned=True,
             enforce_ssl=True,  # Blocks insecure requests to the bucket
@@ -111,4 +116,8 @@ class Product(servicecatalog.ProductStack):
             repo_asset=build_app_asset,
             model_package_group_name=model_package_group_name,
             base_job_prefix=base_job_prefix,
+            repository_type=repository_type,
+            access_token_secret_name=access_token_secret_name,
+            aws_codeconnection_arn=aws_codeconnection_arn,
+            repository_owner=repository_owner,
         )

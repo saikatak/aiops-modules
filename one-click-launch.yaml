@@ -3,17 +3,20 @@ Description: Creates AIOps setup for Developers
 Parameters:
   VersionTag:
     Type: String
-    Default: v1.3.0
-    Description: Version. Should reference version tag in the repository e.g v1.3.0.
+    Default: v1.7.2
+    Description: Version. Should reference version tag in the repository e.g v1.7.2
   ManifestPath:
     Type: String
     Default: manifests/mlops-sagemaker/deployment.yaml
     AllowedValues:
       - manifests/mlops-sagemaker/deployment.yaml
-      - manifests/mlflow-experiments-tracking/deployment.yaml
+      - manifests/mlflow-tracking/deployment.yaml
       - manifests/mwaa-ml-training/deployment.yaml
       - manifests/fmops-qna-rag/deployment.yaml
       - manifests/ray-on-eks/deployment.yaml
+      - manifests/fine-tuning-6b/deployment.yaml
+      - manifests/bedrock-fine-tuning-sfn/deployment.yaml
+      - manifests/mlops-stepfunctions/deployment.yaml
     Description: Manifest to deploy. Must match one of the manifests in the repository.
 Resources:
   CodeBuildRole:
@@ -209,7 +212,7 @@ Resources:
               commands:
                 - echo Build started on `date`
                 - echo 'Cloning aiops repo...'
-                - git clone https://github.com/awslabs/aiops-modules.git --branch ${VERSION_TAG}
+                - git clone https://github.com/awslabs/aiops-modules.git --tag ${VERSION_TAG}
                 - echo 'Cloning complete'
                 - cd aiops-modules/
                 - echo 'Installing dependencies...'
@@ -249,7 +252,7 @@ Resources:
                     "UniqueId": "$UUID",
                     "Status": "$STATUS",
                     "Reason": "$STATUS",
-                    "Data": "Deployment of solution has finished or stopped. See status." 
+                    "Data": "Deployment of solution has finished or stopped. See status."
                   }
                   EOF
                   cat /tmp/payload.json

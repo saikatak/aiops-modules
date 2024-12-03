@@ -9,6 +9,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### **Added**
 
+### **Changed**
+
+## v1.7.2
+
+### **Added**
+
+### **Changed**
+- update MWAA to 2.10.1
+- update MWAA dependencies
+- update ray modules to use kubectl handler role & update CDK to 2.166.0
+- update IDF module versions to 1.13.0
+- pin MWAA requirements file version
+
+## v1.7.1
+
+### **Added**
+- added `mlflow-ai-gw-image` module
+
+### **Changed**
+- changed `ray-image` to pull from AWS Public ECR to avoid docker pull rate limits
+- changed `ray-orchestrator` to not retrieve full training job logs and avoid `States.DataLimitExceeded`
+- update `ray-on-eks` manifest cluster resources
+
+## v1.7.0
+
+### **Added**
+- added GitHub as code repository option along with AWS CodeCommit for sagemaker templates batch_inference, finetune_llm_evaluation, hf_import_models and xgboost_abalone
+- added `ray-orchestrator` module
+- added GitHub as alternate option for code repository support along with AWS CodeCommit for sagemaker-templates-service-catalog module
+- added SageMaker ground truth labeling module
+
+### **Changed**
+- updated manifests to idf release 1.12.0
+
+## v1.6.0
+
+### **Added**
+- added new manifest `manifests/fine-tuning-6B`
+
+### **Changed**
+
+- updated mlflow version to 2.16.0 to support LLM tracing
+- remove CDK overhead from `mlflow-image` module
+- renamed mlflow manifests and updated README.MD
+- added head tolerations & node labels for flexible ray cluster pods scheduling
+
+## v1.5.0
+
+### **Added**
+- added documentation for MWAA Sagemaker training DAG manifest
+- added documentation for Ray on EKS manifests
+- added network isolation and inter container encryption for xgboost template
+- added partition support for modules:
+  - `fmops/sagemaker-jumpstart-fm-endpoint`
+  - `sagemaker/sagemaker-endpoint`
+  - `sagemaker/sagemaker-notebook`
+  - `sagemaker/sagemaker-studio`
+- added Bedrock fine-tuning manifest
+
+### **Changed**
+- added accelerate as extra for transformers in finetune llm template
+- limited bucket name length in templates to avoid pipeline failures when using long project names
+- increased timeout on finetune_llm_evaluation project from 1 hour (default) to 4 hours
+- pin `ray-operator`, `ray-cluster`, and `ray-image` modules versions
+- pin module versions for all manifests
+- the `sagemaker/sagemaker-model-package-promote-pipeline` module no longer generates a Docker image
+- lowercase `fine-tuning-6b` deployment name due to CDK resource naming constraints
+
+## v1.4.0
+
+### **Added**
+
 - adds workflow specific to changes for `requirements-dev.txt` so all static checks are run
 - add `ray-cluster` module based on `kuberay-helm` charts
 - added FSx for Lustre to `ray-on-eks` manifest & persistent volume claim to `ray-cluster` module

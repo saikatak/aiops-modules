@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-
-from typing import Any
+import json
+from typing import Any, List
 
 import aws_cdk
 from aws_cdk import Aws
@@ -14,6 +14,8 @@ from aws_cdk import aws_iam as iam
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_s3_assets as s3_assets
 from constructs import Construct
+
+from common.code_repo_construct import GitHubRepositoryCreator, RepositoryType
 
 
 class BuildPipelineConstruct(Construct):
@@ -29,6 +31,14 @@ class BuildPipelineConstruct(Construct):
         model_bucket: s3.IBucket,
         pipeline_artifact_bucket: s3.IBucket,
         repo_asset: s3_assets.Asset,
+        enable_network_isolation: str,
+        encrypt_inter_container_traffic: str,
+        subnet_ids: List[str],
+        security_group_ids: List[str],
+        repository_type: RepositoryType,
+        access_token_secret_name: str,
+        aws_codeconnection_arn: str,
+        repository_owner: str,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -38,21 +48,36 @@ class BuildPipelineConstruct(Construct):
         sagemaker_pipeline_description = f"{project_name} Model Build Pipeline"
 
         # Create source repo from seed bucket/key
-        build_app_repository = codecommit.Repository(
-            self,
-            "Build App Code Repo",
-            repository_name=f"{project_name}-{construct_id}",
-            code=codecommit.Code.from_asset(
-                asset=repo_asset,
-                branch="main",
-            ),
-        )
-        aws_cdk.Tags.of(build_app_repository).add("sagemaker:project-id", project_id)
-        aws_cdk.Tags.of(build_app_repository).add("sagemaker:project-name", project_name)
-        if domain_id:
-            aws_cdk.Tags.of(build_app_repository).add("sagemaker:domain-id", domain_id)
-        if domain_arn:
-            aws_cdk.Tags.of(build_app_repository).add("sagemaker:domain-arn", domain_arn)
+        build_app_repository: codecommit.IRepository
+        if repository_type == RepositoryType.CODECOMMIT:
+            build_app_repository = codecommit.Repository(
+                self,
+                "Build App Code Repo",
+                repository_name=f"{project_name}-{construct_id}",
+                code=codecommit.Code.from_asset(
+                    asset=repo_asset,
+                    branch="main",
+                ),
+            )
+            aws_cdk.Tags.of(build_app_repository).add("sagemaker:project-id", project_id)
+            aws_cdk.Tags.of(build_app_repository).add("sagemaker:project-name", project_name)
+            if domain_id:
+                aws_cdk.Tags.of(build_app_repository).add("sagemaker:domain-id", domain_id)
+            if domain_arn:
+                aws_cdk.Tags.of(build_app_repository).add("sagemaker:domain-arn", domain_arn)
+
+        elif repository_type == RepositoryType.GITHUB:
+            GitHubRepositoryCreator(
+                self,
+                "Build App Code Repo",
+                github_token_secret_name=access_token_secret_name,
+                repo_name=f"{project_name}-{construct_id}",
+                repo_description=f"Repository for project {project_name}",
+                github_owner=repository_owner,
+                s3_bucket_name=repo_asset.s3_bucket_name,
+                s3_bucket_object_key=repo_asset.s3_object_key,
+                code_connection_arn=aws_codeconnection_arn,
+            )
 
         sagemaker_seedcode_bucket = s3.Bucket.from_bucket_name(
             self,
@@ -171,6 +196,37 @@ class BuildPipelineConstruct(Construct):
                 ],
             ),
         )
+        sagemaker_execution_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "ec2:CreateNetworkInterface",
+                    "ec2:CreateNetworkInterfacePermission",
+                    "ec2:DeleteNetworkInterface",
+                ],
+                resources=[
+                    f"arn:{Aws.PARTITION}:ec2:{Aws.REGION}:{Aws.ACCOUNT_ID}:network-interface/*",
+                    *[
+                        f"arn:{Aws.PARTITION}:ec2:{Aws.REGION}:{Aws.ACCOUNT_ID}:subnet/{subnet_id}"
+                        for subnet_id in subnet_ids
+                    ],
+                    *[
+                        f"arn:{Aws.PARTITION}:ec2:{Aws.REGION}:{Aws.ACCOUNT_ID}:security-group/{security_group_id}"
+                        for security_group_id in security_group_ids
+                    ],
+                ],
+            ),
+        )
+        sagemaker_execution_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeVpcs",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeDhcpOptions",
+                ],
+                resources=["*"],
+            ),
+        )
 
         # Grant extra permissions for the CodeBuild role
         codebuild_role.add_to_policy(
@@ -232,6 +288,12 @@ class BuildPipelineConstruct(Construct):
             environment=codebuild.BuildEnvironment(
                 build_image=codebuild.LinuxBuildImage.STANDARD_5_0,
                 environment_variables={
+                    "ENABLE_NETWORK_ISOLATION": codebuild.BuildEnvironmentVariable(value=enable_network_isolation),
+                    "ENCRYPT_INTER_CONTAINER_TRAFFIC": codebuild.BuildEnvironmentVariable(
+                        value=encrypt_inter_container_traffic,
+                    ),
+                    "SUBNET_IDS": codebuild.BuildEnvironmentVariable(value=json.dumps(subnet_ids)),
+                    "SECURITY_GROUP_IDS": codebuild.BuildEnvironmentVariable(value=json.dumps(security_group_ids)),
                     "SAGEMAKER_PROJECT_NAME": codebuild.BuildEnvironmentVariable(value=project_name),
                     "SAGEMAKER_PROJECT_ID": codebuild.BuildEnvironmentVariable(value=project_id),
                     "SAGEMAKER_DOMAIN_ID": codebuild.BuildEnvironmentVariable(value=domain_id),
@@ -266,14 +328,26 @@ class BuildPipelineConstruct(Construct):
 
         # add a source stage
         source_stage = build_pipeline.add_stage(stage_name="Source")
-        source_stage.add_action(
-            codepipeline_actions.CodeCommitSourceAction(
-                action_name="Source",
-                output=source_artifact,
-                repository=build_app_repository,
-                branch="main",
+        if repository_type == RepositoryType.CODECOMMIT:
+            source_stage.add_action(
+                codepipeline_actions.CodeCommitSourceAction(
+                    action_name="Source",
+                    output=source_artifact,
+                    repository=build_app_repository,
+                    branch="main",
+                )
             )
-        )
+        elif repository_type == RepositoryType.GITHUB:
+            source_stage.add_action(
+                codepipeline_actions.CodeStarConnectionsSourceAction(
+                    action_name="Source",
+                    owner=repository_owner,
+                    repo=f"{project_name}-{construct_id}",
+                    output=source_artifact,
+                    branch="main",
+                    connection_arn=aws_codeconnection_arn,
+                )
+            )
 
         # add a build stage
         build_stage = build_pipeline.add_stage(stage_name="Build")

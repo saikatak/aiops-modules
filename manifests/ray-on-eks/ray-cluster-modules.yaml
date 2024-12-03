@@ -1,5 +1,5 @@
 name: ray-cluster
-path: modules/eks/ray-cluster
+path: git::https://github.com/awslabs/aiops-modules.git//modules/eks/ray-cluster?ref=release/1.7.2&depth=1
 parameters:
   - name: EksClusterAdminRoleArn
     valueFrom:
@@ -7,6 +7,12 @@ parameters:
         group: core
         name: eks
         key: EksClusterMasterRoleArn
+  - name: EksHandlerRoleArn
+    valueFrom:
+      moduleMetadata:
+        group: core
+        name: eks
+        key: EksHandlerRoleArn
   - name: EksClusterName
     valueFrom:
       moduleMetadata:
@@ -31,11 +37,11 @@ parameters:
   - name: HeadResources
     value:
       requests:
-        cpu: "1"
-        memory: "8G"
+        cpu: "8"
+        memory: "24G"
       limits:
-        cpu: "1"
-        memory: "8G"
+        cpu: "8"
+        memory: "24G"
   - name: WorkerReplicas
     value: 1
   - name: WorkerMinReplicas
@@ -45,11 +51,11 @@ parameters:
   - name: WorkerResources
     value:
       requests:
-        cpu: "1"
-        memory: "8G"
+        cpu: "14"
+        memory: "60G"
       limits:
-        cpu: "1"
-        memory: "8G"
+        cpu: "14"
+        memory: "60G"
   - name: DataBucketName
     valueFrom:
       moduleMetadata:
@@ -63,13 +69,13 @@ parameters:
         name: ray
         key: ImageUri
   - name: WorkerTolerations
-    value: # make sure to match w/ the taints on the GPU Nodegroup
+    value:  # make sure to match w/ the taints on the GPU Nodegroup
       - key: "nvidia.com/gpu"
         value: "true"
         # operator: "Equal"
         effect: "NoSchedule"
   - name: WorkerLabels
-    value: # make sure to match w/ the labels on the GPU Nodegroup
+    value:  # make sure to match w/ the labels on the GPU Nodegroup
       usage: gpu
   - name: PvcName
     valueFrom:

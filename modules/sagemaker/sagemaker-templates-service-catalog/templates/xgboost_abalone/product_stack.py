@@ -1,8 +1,9 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any
+from typing import Any, List
 
+import aws_cdk.aws_ec2 as ec2
 import aws_cdk.aws_iam as iam
 import aws_cdk.aws_kms as kms
 import aws_cdk.aws_s3 as s3
@@ -12,6 +13,7 @@ import aws_cdk.aws_servicecatalog as servicecatalog
 from aws_cdk import Aws, CfnOutput, CfnParameter, RemovalPolicy, Tags
 from constructs import Construct
 
+from common.code_repo_construct import RepositoryType
 from templates.xgboost_abalone.pipeline_constructs.build_pipeline_construct import (
     BuildPipelineConstruct,
 )
@@ -30,6 +32,12 @@ class Product(servicecatalog.ProductStack):
         prod_account_id: str,
         sagemaker_domain_id: str,
         sagemaker_domain_arn: str,
+        dev_vpc: ec2.IVpc,
+        dev_subnet_ids: List[str],
+        repository_type: RepositoryType,
+        access_token_secret_name: str,
+        aws_codeconnection_arn: str,
+        repository_owner: str,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, id)
@@ -66,6 +74,27 @@ class Product(servicecatalog.ProductStack):
             type="String",
             description="Prod AWS account id. Required for cross-account model registry permissions.",
             default=prod_account_id,
+        ).value_as_string
+
+        enable_network_isolation = CfnParameter(
+            self,
+            "EnableNetworkIsolation",
+            type="String",
+            description=(
+                "Enable network isolation. Will NOT enable network isolation on preprocess step as it requires access "
+                "to S3 for training data."
+            ),
+            allowed_values=["true", "false"],
+            default="false",
+        ).value_as_string
+
+        encrypt_inter_container_traffic = CfnParameter(
+            self,
+            "EncryptInterContainerTraffic",
+            type="String",
+            description="Encrypt inter container traffic",
+            allowed_values=["true", "false"],
+            default="false",
         ).value_as_string
 
         Tags.of(self).add("sagemaker:project-id", sagemaker_project_id)
@@ -112,7 +141,7 @@ class Product(servicecatalog.ProductStack):
         model_bucket = s3.Bucket(
             self,
             "S3 Artifact",
-            bucket_name=f"mlops-{sagemaker_project_name}-{sagemaker_project_id}-{Aws.ACCOUNT_ID}",
+            bucket_name=f"mlops-{sagemaker_project_name}-{Aws.ACCOUNT_ID}",
             encryption_key=kms_key,
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY,
@@ -223,11 +252,17 @@ class Product(servicecatalog.ProductStack):
         pipeline_artifact_bucket = s3.Bucket(
             self,
             "Pipeline Bucket",
-            bucket_name=f"pipeline-{sagemaker_project_name}-{sagemaker_project_id}-{Aws.ACCOUNT_ID}",
+            bucket_name=f"pipeline-{sagemaker_project_name}-{Aws.ACCOUNT_ID}",
             encryption_key=kms_key,
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY,
         )
+
+        security_group_ids = []
+        if dev_vpc and dev_subnet_ids:
+            security_group_ids = [ec2.SecurityGroup(self, "Security Group", vpc=dev_vpc).security_group_id]
+        else:
+            dev_subnet_ids = []
 
         BuildPipelineConstruct(
             self,
@@ -240,6 +275,14 @@ class Product(servicecatalog.ProductStack):
             model_bucket=model_bucket,
             pipeline_artifact_bucket=pipeline_artifact_bucket,
             repo_asset=build_app_asset,
+            enable_network_isolation=enable_network_isolation,
+            encrypt_inter_container_traffic=encrypt_inter_container_traffic,
+            subnet_ids=dev_subnet_ids,
+            security_group_ids=security_group_ids,
+            repository_type=repository_type,
+            access_token_secret_name=access_token_secret_name,
+            aws_codeconnection_arn=aws_codeconnection_arn,
+            repository_owner=repository_owner,
         )
 
         CfnOutput(

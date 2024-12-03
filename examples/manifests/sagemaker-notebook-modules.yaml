@@ -1,18 +1,17 @@
-
 name: notebook
-path: modules/sagemaker/sagemaker-notebook
+path: git::https://github.com/awslabs/aiops-modules.git//modules/modules/sagemaker/sagemaker-notebook?ref=release/1.7.2&depth=1
 parameters:
   - name: notebook_name
     value: dummy
   - name: instance_type
     value: ml.t2.xlarge
-  - name: subnet_ids # Optional parameter, you can remove it safely
+  - name: subnet_ids  # Optional parameter, you can remove it safely
     valueFrom:
       moduleMetadata:
         group: networking
         name: networking
         key: PrivateSubnetIds
-  - name: vpc_id # Optional parameter, you can remove it safely
+  - name: vpc_id  # Optional parameter, you can remove it safely
     valueFrom:
       moduleMetadata:
         group: networking

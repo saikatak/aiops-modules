@@ -41,6 +41,7 @@ class SeedFarmerParameters(CdkBaseSettings):
     eks_cluster_name: str
     namespace: str
     eks_cluster_admin_role_arn: str
+    eks_handler_role_arn: str
     eks_oidc_arn: str
     service_account_name: str
     pvc_name: Optional[str] = Field(default=None)
@@ -51,6 +52,8 @@ class SeedFarmerParameters(CdkBaseSettings):
     enable_autoscaling: bool = Field(default=True)
     autoscaler_idle_timeout_seconds: int = Field(default=60)
     head_resources: Dict[str, Dict[str, str]] = Field(default=DEFAULT_POD_RESOURCES)
+    head_tolerations: List[Dict[str, str]] = Field(default=[])
+    head_labels: Dict[str, str] = Field(default={})
     worker_replicas: int = Field(default=1)
     worker_min_replicas: int = Field(default=1)
     worker_max_replicas: int = Field(default=10)
